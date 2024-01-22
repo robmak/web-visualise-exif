@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=" rel="icon" type="image/x-icon" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        #map { height: 380px; width: 640px; }
+        .leaflet-container {height: 400px; width: 600px; max-width: 100%; max-height: 100%;}
+    </style>
+</head>
+<body>
+    Select a local file to read Exif data:
+    <br/>
+    <input id="file-input" type="file" />
+    <br/><br/>
+    <div id="exifdata"></div>
+    <div id="map"></div>
+
+
+    <link rel="stylesheet" href="leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script type="text/javascript" src="exif.js"></script>
+    <script>
+        let map, marker;
+        const nodeexifdata = document.getElementById("exifdata");
+
+        function setupMap(latitude, longitude) {
+            console.log('mapping to', latitude, longitude);
+            if (!map) {
+                map = L.map('map').setView([latitude, longitude], 13);
+                const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                          maxZoom: 19,
+                          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }).addTo(map);
+            } else {
+                map.setView([latitude, longitude], 13);
+            }
+
+            if (!marker) {
+                marker = L.marker([latitude, longitude]).addTo(map);
+            } else {
+                marker.setLatLng([latitude, longitude])
+            }
+        }
+
+        function getSingleCoordValue(gps) {
+            //= Degrees + Minutes/60 + Seconds/3600
+            return parseFloat( gps[0] ) + parseFloat( gps[1] )/60 + parseFloat( gps[2])/3600;
+        }
+
+
+        document.getElementById("file-input").onchange = function(e) {
+            var file = e.target.files[0]
+            if (file && file.name) {
+                EXIF.getData(file, function() {
+                    var exifData = EXIF.pretty(this);
+                    if (exifData) {
+                        nodeexifdata.innerHTML = `<pre>${exifData.replace(/</g, "&lt;", )}</pre>`;
+                        console.log(this);
+                        if (this && this.exifdata && this.exifdata.GPSLatitude && this.exifdata.GPSLongitude) {
+                            let ex = this.exifdata;
+                            let latitude = getSingleCoordValue(ex.GPSLatitude)
+                            let longitude = getSingleCoordValue(ex.GPSLongitude)
+                            if (ex.GPSLongitudeRef === "W") {
+                                longitude = -1 * longitude;
+                            }
+                            if (ex.GPSLatitudeRef === "S") {
+                                latitude = -1 * latitude;
+                            }
+                            setupMap(latitude, longitude);
+                        }
+                    } else {
+                        alert("No EXIF data found in image '" + file.name + "'.");
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
